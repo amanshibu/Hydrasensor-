@@ -1,0 +1,14 @@
+{
+  "name": "HydraSense",
+  "short_name": "HydraSense",
+  "description": "AI-Powered Smart Hydration Monitoring",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#BDB4CC",
+  "theme_color": "#C9C0D5",
+  "orientation": "any",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

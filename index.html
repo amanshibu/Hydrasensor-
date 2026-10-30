@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#C9C0D5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>HydraSense</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap">
+  <!-- Cache-buster: bump every v=10 below (and in the app.js script tag) after editing CSS/JS,
+       so phones can never run a mix of old and new cached files. -->
+  <link rel="stylesheet" href="css/style.css?v=10">
+  <script type="importmap">
+  {
+    "imports": {
+      "./js/storage.js": "./js/storage.js?v=10",
+      "./js/weather.js": "./js/weather.js?v=10",
+      "./js/hydration-model.js": "./js/hydration-model.js?v=10",
+      "./js/stats.js": "./js/stats.js?v=10",
+      "./js/charts.js": "./js/charts.js?v=10",
+      "./js/notifications.js": "./js/notifications.js?v=10",
+      "./js/demo.js": "./js/demo.js?v=10"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <!-- AUTH: Login -->
+  <div id="view-auth" class="view auth-view">
+    <form class="auth-card" novalidate onsubmit="event.preventDefault(); handleLogin()">
+      <div class="auth-logo">
+        <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></span>
+      </div>
+      <h1 class="auth-title">HydraSense</h1>
+      <p class="auth-subtitle">Smart hydration, quietly tracked.</p>
+      <div class="input-group">
+        <label for="login-email">Email or username</label>
+        <input type="text" id="login-email" placeholder="admin" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="input-group">
+        <label for="login-pass">Password</label>
+        <input type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password">
+      </div>
+      <p class="form-error" id="login-error" role="alert" hidden></p>
+      <button class="btn btn-primary" type="submit">Sign in</button>
+      <button class="btn btn-ghost" type="button" onclick="goToRegister()">Create account</button>
+      <p class="note auth-hint">Test account: <b>admin</b> / <b>admin</b></p>
+    </form>
+  </div>
+
+  <!-- AUTH: Register -->
+  <div id="view-register" class="view auth-view">
+    <form class="auth-card" novalidate onsubmit="event.preventDefault(); handleRegister()">
+      <div class="auth-logo">
+        <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></span>
+      </div>
+      <h1 class="auth-title">Join HydraSense</h1>
+      <p class="auth-subtitle">Set up your hydration profile.</p>
+      <div class="input-group">
+        <label for="reg-name">Name</label>
+        <input type="text" id="reg-name" placeholder="Your name" autocomplete="name">
+      </div>
+      <div class="input-group">
+        <label for="reg-email">Email</label>
+        <input type="email" id="reg-email" placeholder="you@email.com" autocomplete="email">
+      </div>
+      <div class="input-group">
+        <label for="reg-pass">Password</label>
+        <input type="password" id="reg-pass" placeholder="Create password" autocomplete="new-password">
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label for="reg-age">Age</label>
+          <input type="number" id="reg-age" value="25" min="10" max="100" inputmode="numeric">
+        </div>
+        <div class="input-group">
+          <label for="reg-weight">Weight (kg)</label>
+          <input type="number" id="reg-weight" value="70" min="30" max="200" inputmode="decimal">
+        </div>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label for="reg-gender">Gender</label>
+          <select id="reg-gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="reg-activity">Activity</label>
+          <select id="reg-activity">
+            <option value="sedentary">Sedentary</option>
+            <option value="light">Light</option>
+            <option value="moderate">Moderate</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+      </div>
+      <p class="form-error" id="reg-error" role="alert" hidden></p>
+      <button class="btn btn-primary" type="submit">Get started</button>
+      <button class="btn btn-ghost" type="button" onclick="goToLogin()">I already have an account</button>
+    </form>
+  </div>
+
+  <main>
+  <!-- HOME -->
+  <section id="view-dashboard" class="view" aria-label="Home">
+    <header class="dash-header">
+      <div class="dash-heading">
+        <p class="eyebrow" id="dash-date"></p>
+        <h1 id="dash-greeting">Good morning</h1>
+        <span class="chip chip-offline"><span class="dot"></span>Bottle not connected</span>
+      </div>
+      <div class="header-actions">
+        <div class="streak-badge" title="Day streak" aria-label="Day streak">
+          <span class="icon"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span>
+          <span id="dash-streak">0</span>
+        </div>
+        <button class="round-btn" onclick="openNotifs()" aria-label="Notifications" id="bell-btn">
+          <span class="icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+          <span class="badge" id="bell-badge" hidden>0</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="dash-grid">
+      <section class="card ring-card" aria-label="Today's hydration">
+        <div class="ring-container">
+          <canvas id="ring-canvas" role="img" aria-label="Hydration progress"></canvas>
+        </div>
+        <div id="led-status"></div>
+        <div class="quick-log" id="quick-log"></div>
+      </section>
+
+      <div class="dash-side">
+        <section class="card" id="dash-predict" aria-live="polite">
+          <div class="skeleton"></div>
+        </section>
+
+        <section class="card reminder-card">
+          <div class="reminder-icon">
+            <span class="icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+          </div>
+          <div class="reminder-text">
+            <div class="reminder-title" id="dash-reminder">Every hour</div>
+            <div class="note" id="dash-quiet">Quiet from 22:00 to 07:00</div>
+          </div>
+          <button class="pill-btn pill-sm" onclick="navigate('profile', 'set-notifs')">Change</button>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Bottle</h2>
+            <span class="chip chip-sm chip-offline"><span class="dot"></span>Offline</span>
+          </div>
+          <div class="tiles">
+            <div class="tile"><div class="tile-label">Battery</div><div class="tile-val">—</div></div>
+            <div class="tile"><div class="tile-label">Temp</div><div class="tile-val">—</div></div>
+            <div class="tile"><div class="tile-label">Last sync</div><div class="tile-val">—</div></div>
+          </div>
+          <p class="note">Live readings appear once a bottle is paired. Bottle pairing isn't available in this version yet.</p>
+        </section>
+      </div>
+
+      <section class="card dash-hourly">
+        <h2>Today by hour</h2>
+        <div class="chart-wrap">
+          <canvas id="hourly-canvas" role="img" aria-label="Water intake by hour today"></canvas>
+        </div>
+      </section>
+
+      <section class="card dash-recent">
+        <div class="card-head">
+          <h2>Recent</h2>
+          <button class="link-btn" onclick="openDayStats()">See full day</button>
+        </div>
+        <div id="dash-recent"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- STATISTICS -->
+  <section id="view-history" class="view" aria-label="Statistics">
+    <header class="page-head">
+      <h1>Statistics</h1>
+      <p class="subtitle" id="stats-sub">How you've been drinking</p>
+    </header>
+    <div class="segmented" role="tablist" aria-label="Period">
+      <button role="tab" data-tab="day" onclick="setStatsTab('day')">Day</button>
+      <button role="tab" data-tab="week" onclick="setStatsTab('week')">Week</button>
+      <button role="tab" data-tab="month" onclick="setStatsTab('month')">Month</button>
+      <button role="tab" data-tab="all" onclick="setStatsTab('all')">All time</button>
+    </div>
+    <div id="stats-body"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="view-streaks" class="view" aria-label="History">
+    <header class="page-head">
+      <h1>History</h1>
+      <p class="subtitle">Your streak and the last 30 days</p>
+    </header>
+    <div class="cols">
+      <section class="card streak-card">
+        <div class="streak-hero">
+          <div class="count" id="streak-count">0</div>
+          <div class="label">day streak</div>
+        </div>
+        <h2>Milestones</h2>
+        <div class="milestones" id="streak-milestones"></div>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <h2>Last 30 days</h2>
+          <div class="legend">
+            <span><i class="sw sw-success"></i>Met</span>
+            <span><i class="sw sw-surface"></i>Partial</span>
+          </div>
+        </div>
+        <div class="cal-grid" id="streak-calendar"></div>
+        <p class="note cal-hint">Tap a day to see its breakdown.</p>
+      </section>
+    </div>
+  </section>
+
+  <!-- SETTINGS: a menu of sections; each row opens its own page (openSetting in app.js).
+       Phones show one at a time with a back button; laptops keep the menu on the left. -->
+  <section id="view-profile" class="view" aria-label="Settings">
+    <header class="page-head settings-head">
+      <h1>Settings</h1>
+      <p class="subtitle">Account, goal, reminders and data</p>
+    </header>
+    <div class="settings">
+      <nav class="settings-menu" aria-label="Settings sections">
+        <div class="card profile-summary">
+          <button class="profile-card profile-link" data-setting="set-profile" onclick="openSetting('set-profile')" aria-label="Edit profile">
+            <span class="profile-avatar" id="prof-initial">U</span>
+            <span class="profile-id">
+              <span class="profile-name" id="prof-name">User</span>
+              <span class="profile-email" id="prof-email">email</span>
+            </span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <div class="mini-stats" id="prof-stats"></div>
+        </div>
+
+        <p class="menu-label">Account</p>
+        <div class="menu-group">
+          <button class="menu-row" data-setting="set-profile" onclick="openSetting('set-profile')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span></span>
+            <span class="menu-text"><b>Edit profile</b><small id="sum-profile"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row" data-setting="set-password" onclick="openSetting('set-password')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></span>
+            <span class="menu-text"><b>Password</b><small>Change your sign-in password</small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+        </div>
+
+        <p class="menu-label">Hydration</p>
+        <div class="menu-group">
+          <button class="menu-row" data-setting="set-goal" onclick="openSetting('set-goal')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span></span>
+            <span class="menu-text"><b>Daily goal</b><small id="sum-goal"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row" data-setting="set-location" onclick="openSetting('set-location')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span></span>
+            <span class="menu-text"><b>Weather location</b><small id="sum-location"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row" data-setting="set-notifs" onclick="openSetting('set-notifs')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span></span>
+            <span class="menu-text"><b>Notifications</b><small id="sum-notifs"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row" data-setting="set-quick" onclick="openSetting('set-quick')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14l-1.6 16.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8z"/><path d="M5.6 10h12.8"/></svg></span></span>
+            <span class="menu-text"><b>Quick-log sizes</b><small id="sum-quick"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+        </div>
+
+        <p class="menu-label">More</p>
+        <div class="menu-group">
+          <button class="menu-row" data-setting="set-achievements" onclick="openSetting('set-achievements')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/></svg></span></span>
+            <span class="menu-text"><b>Achievements</b><small id="sum-ach"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row" data-setting="set-data" onclick="openSetting('set-data')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span></span>
+            <span class="menu-text"><b>Your data</b><small id="sum-data"></small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row" data-setting="set-about" onclick="openSetting('set-about')">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></span></span>
+            <span class="menu-text"><b>Help &amp; about</b><small>How your goal works, privacy</small></span>
+            <span class="icon chev"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></span>
+          </button>
+          <button class="menu-row menu-danger" onclick="logout()">
+            <span class="menu-icon"><span class="icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span></span>
+            <span class="menu-text"><b>Sign out</b></span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="settings-pages">
+        <section class="settings-page" id="set-profile" hidden aria-labelledby="t-profile">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-profile">Edit profile</h2></div>
+          <form class="card" novalidate onsubmit="event.preventDefault(); updateProfile()">
+            <p class="note note-flush">Weight, activity and pregnancy set your baseline before weather is added.</p>
+            <div class="input-group">
+              <label for="prof-name-input">Name</label>
+              <input type="text" id="prof-name-input" autocomplete="name">
+            </div>
+            <div class="input-group">
+              <label for="prof-email-input">Email or username</label>
+              <input type="text" id="prof-email-input" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label for="prof-age">Age</label>
+                <input type="number" id="prof-age" min="5" max="120" inputmode="numeric">
+              </div>
+              <div class="input-group">
+                <label for="prof-weight">Weight (kg)</label>
+                <input type="number" id="prof-weight" min="30" max="250" inputmode="decimal">
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label for="prof-gender">Gender</label>
+                <select id="prof-gender">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label for="prof-activity">Activity</label>
+                <select id="prof-activity">
+                  <option value="sedentary">Sedentary</option>
+                  <option value="light">Light</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="prof-condition">Pregnancy / breastfeeding</label>
+              <select id="prof-condition">
+                <option value="none">Not applicable</option>
+                <option value="pregnant">Pregnant (+300 ml)</option>
+                <option value="breastfeeding">Breastfeeding (+700 ml)</option>
+              </select>
+            </div>
+            <p class="form-error" id="prof-error" role="alert" hidden></p>
+            <button class="btn btn-primary" type="submit">Save profile</button>
+          </form>
+        </section>
+
+        <section class="settings-page" id="set-password" hidden aria-labelledby="t-password">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-password">Password</h2></div>
+          <form class="card" novalidate onsubmit="event.preventDefault(); changePassword()">
+            <div class="input-group">
+              <label for="pw-current">Current password</label>
+              <input type="password" id="pw-current" autocomplete="current-password">
+            </div>
+            <div class="input-group">
+              <label for="pw-new">New password</label>
+              <input type="password" id="pw-new" autocomplete="new-password" minlength="4">
+            </div>
+            <div class="input-group">
+              <label for="pw-confirm">Confirm new password</label>
+              <input type="password" id="pw-confirm" autocomplete="new-password" minlength="4">
+            </div>
+            <p class="form-error" id="pw-error" role="alert" hidden></p>
+            <button class="btn btn-primary" type="submit">Update password</button>
+            <p class="note note-gap" id="pw-note">At least 4 characters.</p>
+          </form>
+        </section>
+
+        <section class="settings-page" id="set-goal" hidden aria-labelledby="t-goal">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-goal">Daily goal</h2></div>
+          <div class="card goal-display">
+            <div class="goal-val" id="prof-goal">2500 ml</div>
+            <div class="goal-sub" id="prof-goal-sub"></div>
+            <div class="segmented segmented-sm" role="radiogroup" aria-label="Goal mode">
+              <button role="radio" data-goal-mode="auto" onclick="setGoalMode('auto')">Smart (weather)</button>
+              <button role="radio" data-goal-mode="manual" onclick="setGoalMode('manual')">Fixed amount</button>
+            </div>
+            <form class="inline-form" id="manual-goal-row" hidden novalidate onsubmit="event.preventDefault(); saveManualGoal()">
+              <div class="input-group">
+                <label for="prof-manual-goal">Fixed goal (ml)</label>
+                <input type="number" id="prof-manual-goal" min="500" max="6000" step="50" inputmode="numeric">
+              </div>
+              <button class="pill-btn pill-dark" type="submit">Save</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="settings-page" id="set-location" hidden aria-labelledby="t-location">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-location">Weather location</h2></div>
+          <div class="card">
+            <p class="note note-flush" id="loc-current">Using your device location</p>
+            <form class="inline-form" novalidate onsubmit="event.preventDefault(); findCity()">
+              <div class="input-group">
+                <label for="loc-query">Search a city</label>
+                <input type="search" id="loc-query" placeholder="e.g. Kochi" autocomplete="off">
+              </div>
+              <button class="pill-btn pill-dark" type="submit">Search</button>
+            </form>
+            <div class="loc-results" id="loc-results"></div>
+            <button class="btn btn-secondary" onclick="useDeviceLocation()">Use device location</button>
+          </div>
+        </section>
+
+        <section class="settings-page" id="set-notifs" hidden aria-labelledby="t-notifs">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-notifs">Notifications</h2></div>
+          <div class="card">
+            <div class="toggle-list toggle-list-flush">
+              <label class="toggle-row"><span><b>Allow notifications</b><small>Turns every reminder and alert on or off</small></span><span class="switch"><input type="checkbox" role="switch" id="n-on" onchange="toggleSetting('notificationsOn', this.checked)"><span></span></span></label>
+            </div>
+            <div class="perm-row" id="perm-row"></div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Schedule</h3>
+            <div class="input-group">
+              <label for="prof-reminder">Reminder interval</label>
+              <select id="prof-reminder" onchange="updateReminder()">
+                <option value="30">Every 30 min</option>
+                <option value="60">Every hour</option>
+                <option value="90">Every 90 min</option>
+                <option value="120">Every 2 hours</option>
+              </select>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label for="n-wake">Wake up</label>
+                <input type="time" id="n-wake" onchange="updateQuietHours()">
+              </div>
+              <div class="input-group">
+                <label for="n-sleep">Bedtime</label>
+                <input type="time" id="n-sleep" onchange="updateQuietHours()">
+              </div>
+            </div>
+            <p class="note note-flush-bottom">No reminders between bedtime and wake-up.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Alerts</h3>
+            <div class="toggle-list toggle-list-flush">
+              <label class="toggle-row"><span><b>Water reminders</b><small>At your chosen interval</small></span><span class="switch"><input type="checkbox" role="switch" id="n-rem" onchange="toggleSetting('remindersOn', this.checked)"><span></span></span></label>
+              <label class="toggle-row"><span><b>Smart reminders</b><small>Only when you're behind pace</small></span><span class="switch"><input type="checkbox" role="switch" id="n-smart" onchange="toggleSetting('smartReminders', this.checked)"><span></span></span></label>
+              <label class="toggle-row"><span><b>Hot-weather alerts</b><small>Morning heads-up on hot days</small></span><span class="switch"><input type="checkbox" role="switch" id="n-weather" onchange="toggleSetting('weatherAlerts', this.checked)"><span></span></span></label>
+              <label class="toggle-row"><span><b>Goal reached</b><small>Celebrate hitting your goal</small></span><span class="switch"><input type="checkbox" role="switch" id="n-goal" onchange="toggleSetting('goalAlerts', this.checked)"><span></span></span></label>
+              <label class="toggle-row"><span><b>Streak at risk</b><small>Evening nudge to keep your streak</small></span><span class="switch"><input type="checkbox" role="switch" id="n-streak" onchange="toggleSetting('streakAlerts', this.checked)"><span></span></span></label>
+            </div>
+          </div>
+          <div class="card">
+            <button class="btn btn-secondary" onclick="testNotification()">Send a test notification</button>
+            <p class="note note-gap">Reminders arrive while HydraSense is open in a tab or installed as an app. Your phone's settings can still block them.</p>
+          </div>
+        </section>
+
+        <section class="settings-page" id="set-quick" hidden aria-labelledby="t-quick">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-quick">Quick-log sizes</h2></div>
+          <form class="card" novalidate onsubmit="event.preventDefault(); saveQuickAmounts()">
+            <p class="note note-flush">The three buttons under your progress ring on Home.</p>
+            <div class="input-row input-row-3">
+              <div class="input-group"><label for="qa-0">Small (ml)</label><input type="number" id="qa-0" min="10" max="2000" step="10" inputmode="numeric"></div>
+              <div class="input-group"><label for="qa-1">Medium (ml)</label><input type="number" id="qa-1" min="10" max="2000" step="10" inputmode="numeric"></div>
+              <div class="input-group"><label for="qa-2">Large (ml)</label><input type="number" id="qa-2" min="10" max="2000" step="10" inputmode="numeric"></div>
+            </div>
+            <button class="btn btn-primary" type="submit">Save sizes</button>
+          </form>
+        </section>
+
+        <section class="settings-page" id="set-achievements" hidden aria-labelledby="t-ach">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-ach">Achievements</h2></div>
+          <div class="card">
+            <div class="card-head">
+              <h3 class="card-title">Unlocked</h3>
+              <span class="chip chip-sm chip-accent" id="ach-count">0 / 0</span>
+            </div>
+            <div class="achievements" id="achievements"></div>
+          </div>
+        </section>
+
+        <section class="settings-page" id="set-data" hidden aria-labelledby="t-data">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-data">Your data</h2></div>
+          <div class="card">
+            <h3 class="card-title">Export and demo</h3>
+            <div class="actions">
+              <button class="btn btn-secondary" onclick="exportCsv()">Export CSV</button>
+              <button class="btn btn-secondary" id="demo-btn" onclick="toggleDemo()">Load demo data</button>
+            </div>
+            <p class="note note-gap" id="demo-note">Demo data adds 60 days of sample history, clearly marked, so you can explore the charts. You can remove it any time.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Reset</h3>
+            <p class="note note-flush">Deletes your profile, every drink you've logged and all settings on this device. This can't be undone.</p>
+            <button class="btn btn-danger" onclick="resetData()">Reset all data</button>
+          </div>
+        </section>
+
+        <section class="settings-page" id="set-about" hidden aria-labelledby="t-about">
+          <div class="sp-head"><button class="round-btn sp-back" onclick="closeSetting()" aria-label="Back to settings"><span class="icon"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span></button><h2 id="t-about">Help &amp; about</h2></div>
+          <div class="card prose">
+            <h3 class="card-title">How your goal is worked out</h3>
+            <p>Your baseline is 35 ml per kg of body weight, scaled by your activity level, plus 300 ml in pregnancy or 700 ml while breastfeeding. On hot, humid or high-UV days the weather model adds up to 1 litre more.</p>
+            <h3 class="card-title">Privacy</h3>
+            <p>Everything you log stays in this browser on this device. Only your location's coordinates are sent, to the weather service, to fetch the forecast.</p>
+            <h3 class="card-title">Test account</h3>
+            <p>Sign in with <b>admin</b> / <b>admin</b> to try the app.</p>
+            <p class="note note-gap">HydraSense 1.1</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+  </main>
+
+  <!-- Custom Log Modal -->
+  <div class="modal-overlay" id="custom-modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="custom-title">
+      <div class="modal-handle"></div>
+      <h2 id="custom-title">Log water</h2>
+      <div class="slider-val"><span id="custom-amount">200</span><small> ml</small></div>
+      <div class="slider-wrap">
+        <input type="range" id="custom-slider" min="50" max="1000" step="10" value="200" oninput="syncSlider(this.value)" aria-label="Amount in milliliters">
+      </div>
+      <button class="btn btn-primary" onclick="submitCustomLog()">Log intake</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Notifications Modal -->
+  <div class="modal-overlay" id="notif-modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal-sheet notif-sheet" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="notif-title">
+      <div class="modal-handle"></div>
+      <div class="card-head">
+        <h2 id="notif-title" class="sheet-title">Notifications</h2>
+        <button class="link-btn" onclick="clearNotifs()">Clear all</button>
+      </div>
+      <div class="notif-list" id="notif-list"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" id="snooze-btn" onclick="snooze()">Snooze 1 hour</button>
+        <button class="btn btn-primary" onclick="closeModal(); navigate('profile', 'set-notifs')">Notification settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav" id="bottom-nav" style="display:none" aria-label="Main">
+    <span class="nav-pill" id="nav-pill" aria-hidden="true"></span>
+    <button class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')" aria-label="Home">
+      <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></span>
+      <span class="label">Home</span>
+    </button>
+    <button class="nav-item" data-view="history" onclick="navigate('history')" aria-label="Statistics">
+      <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span>
+      <span class="label">Statistics</span>
+    </button>
+    <button class="nav-item" data-view="streaks" onclick="navigate('streaks')" aria-label="History">
+      <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+      <span class="label">History</span>
+    </button>
+    <button class="nav-item" data-view="profile" onclick="navigate('profile')" aria-label="Settings">
+      <span class="icon"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></span>
+      <span class="label">Settings</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js?v=10"></script>
+  <script>
+    // If the app script can't run (stale cache, very old browser), say so instead of showing dead buttons.
+    addEventListener('load', () => setTimeout(() => {
+      if (!window.navigate) document.body.insertAdjacentHTML('afterbegin', '<p class="load-error" role="alert">HydraSense didn\'t load properly. Close this tab and open the link again, or clear this site\'s data in your browser settings.</p>');
+    }, 1500));
+  </script>
+</body>
+</html>
